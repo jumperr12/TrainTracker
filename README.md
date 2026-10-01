@@ -1,56 +1,53 @@
-# ICtracker: a live map of PKP Intercity trains
+# TrainTracker
 
-ICtracker estimates where every PKP Intercity train is right now. It combines two things:
+Live map of PKP Intercity trains in Poland.
 
-- **Timetable and reported run data** from the official PKP PLK **Open Data API** ("Otwarte Dane Kolejowe").
-- **Real track geometry** from OpenStreetMap.
+Train positions are estimated from timetables and reported arrival/departure times published by
+PKP Polskie Linie Kolejowe, then placed on the actual railway track using OpenStreetMap data.
+Markers move smoothly between updates and show the current delay.
 
-Between reports, trains are interpolated along the routed railway line and animated once per second.
+## Features
 
-- **Backend:** Python (FastAPI). It polls the PLK API and estimates positions. It is the only place the API key lives.
-- **Frontend:** React, TypeScript and Leaflet (Vite).
+- Live positions of PKP Intercity trains (EIP, EIC, IC, TLK, EC, EN)
+- Trains follow the real track geometry instead of straight lines between stations
+- Delay shown on every train (green / amber / red)
+- Train details: route, stops, planned vs. reported/estimated times, platforms
+- Search by train number, name or station; filter by category
+- Mock mode with simulated trains for development without an API key
+- Works on desktop and mobile
 
-```
-PKP PLK API ──(key, server-side only)──> poller ──> LiveState ──> FastAPI /api/* ──> React + Leaflet
-OSM (Overpass, one-off) ──> stations_geo.json + rail graph ──> rail_segments.json (track polylines)
-```
+## Tech stack
 
-## Data source and terms
+- **Backend:** Python, FastAPI, httpx, SciPy
+- **Frontend:** React, TypeScript, Leaflet, Vite
+- **Data:** [PKP PLK Open Data API](https://pdp-api.plk-sa.pl), [OpenStreetMap](https://www.openstreetmap.org)
 
-- PKP PLK publishes a free public API: https://pdp-api.plk-sa.pl, with docs at `/api-documentation`. **No scraping is needed.**
-- portalpasazera.pl has no `robots.txt`, and this app never contacts it.
-- You apply for a key at https://pdp-api.plk-sa.pl and get an answer by email in 3–5 business days. Ask for the **Standard** tier if you want polling every 30 s.
-- Terms of use: https://pdp-api.plk-sa.pl/api/v1/terms/html. In short:
-  - Credit **"PKP Polskie Linie Kolejowe S.A."** when you publish data. The status bar does this.
-  - Don't share the key. It stays in `backend/.env` and never reaches the browser.
-  - Don't resell raw data.
-  - Stay within the rate limits. The poller paces itself using the quota headers.
-- Map data and track geometry are © OpenStreetMap contributors (ODbL). The generated
-  `stations_geo.json` and `rail_segments.json` files are derivative databases.
-- Positions are **estimates**, not GPS.
+## Getting started
 
-## Quick start (mock data, no key needed)
+### Requirements
 
-The repository includes coordinates for the mock stations, so this runs right after cloning. Without
-`rail_segments.json` the mock trains move in straight lines; build the track geometry (below) to snap
-them to real rails.
+- Python 3.11+
+- Node.js 20+
+- A PKP PLK Open Data API key ([request one here](https://pdp-api.plk-sa.pl)), or use mock mode
 
-**Backend:**
+### Backend
 
 ```bash
 cd backend
 python -m venv .venv
-.venv/Scripts/python -m pip install -e ".[dev]"
+.venv/Scripts/python -m pip install -e ".[dev]"   # macOS/Linux: .venv/bin/python
 cp .env.example .env
 ```
 
-Set `MOCK_MODE=1` in `.env`, then start the server:
+Edit `.env` and either set `PLK_API_KEY` or `MOCK_MODE=1`, then:
 
 ```bash
 .venv/Scripts/python -m uvicorn app.main:app --reload
 ```
 
-**Frontend:**
+The API runs on http://localhost:8000 (interactive docs at `/docs`).
+
+### Frontend
 
 ```bash
 cd frontend
@@ -58,95 +55,60 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. The Vite dev server proxies `/api` to the backend on port 8000. On
-macOS or Linux, use `.venv/bin/python` instead of `.venv/Scripts/python`.
+Open http://localhost:5173. The dev server proxies `/api` to the backend.
 
-## Building the geodata
+## Configuration
 
-The OSM steps don't need a PLK key. Run everything from `backend/`.
+All settings live in `backend/.env` (see `.env.example`):
 
-| Step | Command | Output |
+| Variable | Default | Description |
 |---|---|---|
-| 1. Download OSM stations and rail tiles (resumable; about 1 min per tile on busy public servers) | `python -m scripts.fetch_osm` | `data/osm/` |
-| 2. Build the rail graph | `python -m scripts.build_rail_graph` | `data/rail_graph.pkl` |
-| 3. Match station names to OSM | `python -m scripts.build_station_coords [--mock]` | `stations_geo.json`, `data/reports/unmatched*.csv` |
-| 4. Route station pairs along the track | `python -m scripts.build_segments [--mock]` | `rail_segments.json`, `data/reports/segment_issues*.csv` |
+| `PLK_API_KEY` | – | PKP PLK Open Data API key |
+| `PLK_TIER` | `basic` | API tier (`basic`, `standard`, `premium`), sets the polling rate |
+| `CARRIERS` | `IC` | Carrier codes to track |
+| `POLL_INTERVAL_S` | per tier | Override the polling interval (capped by the tier's daily limit) |
+| `MOCK_MODE` | `0` | `1` = simulated trains, no API key needed |
+| `PLK_NAIVE_TZ` | `Europe/Warsaw` | Timezone of the API's timestamps |
 
-For real data:
+## Building map data
 
-- Step 3 downloads the PLK station dictionary, so it needs the key.
-- Step 3 disambiguates duplicate station names using route neighbours from the schedules the running backend caches in `data/cache/`.
-- Step 4 routes the pairs from those cached schedules.
+Station coordinates and track geometry come from OpenStreetMap and are generated once.
+Run from `backend/`:
 
-Fix any unmatched or wrong stations in `data/overrides/station_overrides.csv`, then re-run step 4.
-While the backend runs, it also routes any new station pairs it meets in the background. Restart it
-after rebuilding the geodata.
+```bash
+python -m scripts.fetch_osm                 # download stations and railway lines (resumable)
+python -m scripts.build_rail_graph          # build the rail network graph
+python -m scripts.build_station_coords      # match PLK stations to OSM (add --mock for mock data)
+python -m scripts.build_segments            # route station-to-station track segments (add --mock)
+```
 
-## Going live with a real key
+Stations that can't be matched automatically are listed in `data/reports/unmatched.csv` and can
+be fixed in `data/overrides/station_overrides.csv`.
 
-1. Put the key in `backend/.env` (`PLK_API_KEY=sk_live_...`), set `PLK_TIER`, and set `MOCK_MODE=0`.
-2. `python -m scripts.record_fixtures` uses 4 API calls. It prints:
-   - the carrier codes (check that `IC` is PKP Intercity);
-   - a timezone sanity check on the naive timestamps;
-   - how many stations have coordinates.
-3. Start the backend once. It caches today's schedules in `data/cache/`.
-4. `python -m scripts.build_station_coords --nominatim`, then `python -m scripts.build_segments`.
-5. Restart the backend, then start the frontend as above.
+## How it works
 
-## How positions are estimated
+1. The backend polls the PKP PLK API for train runs and caches daily timetables.
+2. For each train it builds a timeline from reported times and carries the last known delay forward.
+3. The train is placed on the routed track segment between its previous and next station.
+4. The frontend animates markers along the segment every second and refreshes data every 15 s.
 
-- **Timeline** (`app/position/timeline.py`):
-  - Reported times are used as they are.
-  - After the last report, the delay is carried forward. A train can recover delay at stops with long planned dwell: `est_dep = max(planned_dep, est_arr + min(dwell, 1 min))`.
-  - Points without a report between two reports get an interpolated delay.
-- **Estimator** (`app/position/estimator.py`):
-  - The train is placed on the routed track at the predicted time.
-  - It is never shown past its next unreported event. If that event is overdue, the train is held just before it ("awaiting report", with a growing delay) for up to `HOLD_GRACE_MIN` (10 min by default). After that we assume the point doesn't report.
-- **Routing** (`app/geo/rail.py`):
-  - A* runs over directed edges, so a train can't make a sharp turn through a switch.
-  - Stations snap to several nearby track candidates (sampled every 40 m).
-  - A route falls back to a straight line if no rail path exists or the path is more than 1.8× the straight-line distance.
-- **Frontend:** the backend sends each moving train's segment key with departure and arrival times. The browser animates the marker along the cached polyline once per second, and a poll every 15 s corrects it.
-
-## Polling and quota
-
-| Tier | Limits | Default interval |
-|---|---|---|
-| Basic | 100 per hour, 1000 per day | 120 s |
-| Standard | 500 per hour, 5000 per day | 30 s |
-| Premium | 2000 per hour, 20000 per day | 15 s |
-
-- `POLL_INTERVAL_S` can override the interval, but it is clamped to the daily budget.
-- The poller stretches its interval when `X-RateLimit-*-Remaining` runs low.
-- On HTTP 429 it waits until the next full hour.
-- During the monthly maintenance window (first Tuesday, 20:00–24:00) it polls rarely.
-- Schedules are cached on disk, so restarts don't use up quota.
+Positions are estimates and may differ from the real location of a train.
 
 ## Icons
 
-`frontend/public/icons/` contains **transparent placeholder PNGs**. See
-[frontend/public/icons/README.md](frontend/public/icons/README.md) for the file names, sizes and
-orientation. Replace them with real artwork, then set `SHOW_FALLBACK_LABEL = false` in
-`frontend/src/lib/icons.ts`.
+Train and station icons are in `frontend/public/icons/`. The current files are transparent
+placeholders — see [the icons README](frontend/public/icons/README.md) for names and sizes.
 
 ## Tests
 
 ```bash
 cd backend && .venv/Scripts/python -m pytest
-cd frontend && npm test && npm run typecheck
+cd frontend && npm test
 ```
 
-The two test suites check the TS and Python interpolation code against the same vectors
-(`backend/tests/fixtures/interp_cases.json`).
+## Data sources & attribution
 
-## API (for the frontend)
+- Timetable and train data: **PKP Polskie Linie Kolejowe S.A.** (Open Data API, used under its terms of use)
+- Map data and track geometry: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL
 
-| Endpoint | Returns |
-|---|---|
-| `GET /api/trains` | Visible trains: position, bearing, delay, status, current segment and next stop |
-| `GET /api/trains/{key}` | Full stop list: planned, reported and estimated times, platforms |
-| `GET /api/segments?keys=A-B,...` | Track polylines |
-| `GET /api/stations` | Located stations on the tracked routes |
-| `GET /api/meta` | Mode, attribution, freshness, quota, errors |
-
-Interactive docs are at http://localhost:8000/docs.
+This project is not affiliated with PKP or PKP Intercity.
