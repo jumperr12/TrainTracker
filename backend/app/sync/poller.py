@@ -6,7 +6,7 @@ import asyncio
 import csv
 import logging
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from app.config import Settings
 from app.geo.rail import RailGraphData, RailRouter, located_pairs, route_missing_pairs
@@ -17,28 +17,72 @@ from app.sync.quota import MAINTENANCE_POLL_S, base_interval, in_maintenance_win
 
 log = logging.getLogger(__name__)
 
-SCHEDULES_MAX_AGE = timedelta(hours=12)
+SCHEDULES_MAX_AGE = timedelta(hours=24)  # plus a refresh whenever the local date changes
+DISRUPTIONS_INTERVAL = timedelta(minutes=15)
 MAX_BACKOFF_S = 900.0
+FRESH_WAIT_S = 10.0
 
 
 class Poller:
+    """Polls the PLK API only while someone is using the map.
+
+    Requests to /api/trains or /api/trains/{key} count as activity. After `idle_after_min`
+    minutes without activity the loop pauses and makes no API calls; the next request wakes it
+    up and waits (up to FRESH_WAIT_S) for fresh data before answering.
+    """
+
     def __init__(self, settings: Settings, source: PlkSource, state: LiveState) -> None:
         self.settings = settings
         self.source = source
         self.state = state
         self.base_interval = 15.0 if settings.mock_mode else base_interval(settings.plk_tier, settings.poll_interval_s)
         state.poll_interval_s = self.base_interval
+        self.idle_after = timedelta(minutes=settings.idle_after_min)
+        self.last_activity: datetime | None = None
         self._schedules_for: date | None = None
         self._failures = 0
         self._routing: asyncio.Task | None = None
         self._stop = asyncio.Event()
+        self._wake = asyncio.Event()
+        self._polled = asyncio.Event()
 
     def stop(self) -> None:
         self._stop.set()
+        self._wake.set()
+
+    def _is_idle(self, now: datetime) -> bool:
+        if self.idle_after <= timedelta(0):
+            return False  # idle mode disabled
+        return self.last_activity is None or now - self.last_activity > self.idle_after
+
+    async def on_activity(self) -> None:
+        """Called by the API for each map request. Wakes the loop and, if the data is old, waits for a poll."""
+        now = utcnow()
+        self.last_activity = now
+        last = self.state.last_poll_ok
+        if last is not None and (now - last).total_seconds() <= max(2 * self.base_interval, 60.0):
+            return
+        self._polled.clear()
+        self._wake.set()
+        try:
+            await asyncio.wait_for(self._polled.wait(), timeout=FRESH_WAIT_S)
+        except TimeoutError:
+            pass
 
     async def run(self) -> None:
         while not self._stop.is_set():
+            if self._is_idle(utcnow()):
+                if not self.state.idle:
+                    log.info("no map activity for %s, pausing API polling", self.idle_after)
+                    self.state.idle = True
+                self._wake.clear()
+                await self._wake.wait()
+                continue
+            if self.state.idle:
+                log.info("map opened, resuming API polling")
+                self.state.idle = False
             wait = await self.tick()
+            self._polled.set()
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=wait)
             except TimeoutError:
@@ -60,6 +104,12 @@ class Poller:
             resp = await self.source.operations(self.settings.carrier_list)
             self.state.set_operations(resp, self.source.last_snapshot_at, utcnow())
             self._failures = 0
+            try:
+                await self._ensure_disruptions()
+            except (PlkRateLimited, PlkAuthError):
+                raise
+            except PlkError as exc:  # optional extra information; keep the old list
+                log.warning("disruptions refresh failed: %s", exc)
             self._start_segment_topup()
             wait = paced_interval(self.base_interval, self.source.quota, local.replace(tzinfo=None))
         except PlkRateLimited as exc:
@@ -84,6 +134,14 @@ class Poller:
         self.state.quota = self.source.quota
         self.state.calls_made = self.source.calls_made
         return wait
+
+    # -- disruptions ------------------------------------------------------------------
+    async def _ensure_disruptions(self) -> None:
+        loaded = self.state.disruptions_loaded_at
+        if loaded is not None and utcnow() - loaded < DISRUPTIONS_INTERVAL:
+            return
+        resp = await self.source.disruptions(self.settings.carrier_list)
+        self.state.set_disruptions(resp, utcnow())
 
     # -- schedules --------------------------------------------------------------------
     async def _ensure_schedules(self, today: date) -> None:

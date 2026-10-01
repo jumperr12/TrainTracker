@@ -93,7 +93,8 @@ export function TrainLayer({ trains, clockOffset, selectedKey, onSelect }: Props
 function tooltip(t: Train): string {
   const name = t.name ? ` ${t.name}` : "";
   const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
-  return `<b>${esc(t.number)}${esc(name)}</b><br>${esc(t.origin)} → ${esc(t.destination)}<br>${delayText(t.delayMin)}`;
+  const warn = t.disrupted ? "<br>⚠ traffic disruption on route" : "";
+  return `<b>${esc(t.number)}${esc(name)}</b><br>${esc(t.origin)} → ${esc(t.destination)}<br>${delayText(t.delayMin)}${warn}`;
 }
 
 function place(e: Entry, clockOffset: number): void {

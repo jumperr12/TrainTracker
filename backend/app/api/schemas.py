@@ -21,6 +21,15 @@ class NextStop(Out):
     delay_min: int
 
 
+class DisruptionOut(Out):
+    id: int
+    type: str | None  # human-readable type name from the API dictionary
+    message: str | None
+    from_station: str | None
+    to_station: str | None
+    affected_trains: int
+
+
 class TrainOut(Out):
     key: str
     number: str
@@ -39,6 +48,7 @@ class TrainOut(Out):
     origin: str
     destination: str
     last_report_ms: int | None
+    disrupted: bool  # affected by at least one reported traffic disruption
 
 
 class TrainsOut(Out):
@@ -73,6 +83,7 @@ class TrainDetailOut(TrainOut):
     stops: list[StopOut]
     segment_keys: list[str]  # consecutive located stops along the whole route
     current_segment_index: int | None
+    disruptions: list[DisruptionOut]
 
 
 class StationOut(Out):
@@ -98,8 +109,10 @@ class MetaOut(Out):
     last_poll_ok_ms: int | None
     snapshot_at_ms: int | None
     stale: bool
+    idle: bool  # polling paused because nobody was viewing the map
     last_error: str | None
     auth_error: bool
+    disruption_count: int
     quota: QuotaOut
     api_calls: int
     train_count: int

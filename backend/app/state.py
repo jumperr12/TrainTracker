@@ -9,7 +9,14 @@ from app.config import Settings
 from app.geo.rail import SegmentStore
 from app.geo.stations import StationIndex
 from app.plk.client import QuotaInfo
-from app.plk.models import OperationsResponse, Route, SchedulesResponse, TrainOperation
+from app.plk.models import (
+    Disruption,
+    DisruptionsResponse,
+    OperationsResponse,
+    Route,
+    SchedulesResponse,
+    TrainOperation,
+)
 from app.position.estimator import Estimate, estimate
 from app.position.timeline import Timeline, build_timeline
 
@@ -48,6 +55,11 @@ class LiveState:
         self.poll_interval_s: float | None = None
         self.quota: QuotaInfo = QuotaInfo()
         self.calls_made = 0
+        self.idle = False  # the poller is paused because nobody is looking at the map
+        self.disruptions: list[Disruption] = []
+        self.disruption_types: dict[str, str] = {}
+        self.disruptions_loaded_at: datetime | None = None
+        self._disruptions_by_train: dict[tuple, list[Disruption]] = {}
         self._cache: tuple[datetime, list[LiveTrain]] | None = None
 
     # -- writers (poller) ---------------------------------------------------------
@@ -78,6 +90,28 @@ class LiveState:
         self.last_error = None
         self.auth_error = False
         self._cache = None
+
+    def set_disruptions(self, resp: DisruptionsResponse, now: datetime) -> None:
+        self.disruptions = resp.disruptions
+        self.disruption_types.update(resp.disruption_types)
+        for sid, name in resp.stations.items():
+            if sid.isdigit():
+                self.station_names.setdefault(int(sid), name)
+        by_train: dict[tuple, list[Disruption]] = {}
+        for d in resp.disruptions:
+            for a in d.affected_routes:
+                lst = by_train.setdefault((a.schedule_id, a.order_id, a.operating_date), [])
+                if d not in lst:
+                    lst.append(d)
+        self._disruptions_by_train = by_train
+        self.disruptions_loaded_at = now
+
+    def disruptions_for(self, op: TrainOperation) -> list[Disruption]:
+        found = self._disruptions_by_train.get((op.schedule_id, op.order_id, op.operating_date), [])
+        if op.train_order_id:  # the API may key the affected route by either id
+            extra = self._disruptions_by_train.get((op.schedule_id, op.train_order_id, op.operating_date), [])
+            found = found + [d for d in extra if d not in found]
+        return found
 
     def record_error(self, message: str, now: datetime, auth: bool = False) -> None:
         self.last_error = message

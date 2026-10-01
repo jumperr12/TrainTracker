@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     user_agent: str = "ICtracker/0.1 (educational passenger-information project)"
     # Minutes a train is held just before an unreported stop before we assume that stop never reports.
     hold_grace_min: float = 10.0
+    # Pause API polling after this many minutes without anyone viewing the map (0 = always poll).
+    idle_after_min: float = 5.0
 
     @field_validator("poll_interval_s", mode="before")
     @classmethod

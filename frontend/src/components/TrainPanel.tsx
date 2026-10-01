@@ -53,6 +53,20 @@ export function TrainPanel({ detail, error, now, onClose }: Props) {
         Last report {ago(detail.lastReportMs, now)} · running date {detail.operatingDate}
       </div>
 
+      {detail.disruptions.map((d) => (
+        <div key={d.id} className="disruption" role="note">
+          <b>⚠ {d.type ?? "Traffic disruption"}</b>
+          {d.fromStation && (
+            <span className="muted small">
+              {" "}
+              {d.fromStation}
+              {d.toStation && d.toStation !== d.fromStation ? ` – ${d.toStation}` : ""}
+            </span>
+          )}
+          {d.message && <div className="small">{d.message}</div>}
+        </div>
+      ))}
+
       <table className="stops">
         <thead>
           <tr>

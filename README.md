@@ -11,6 +11,7 @@ Markers move smoothly between updates and show the current delay.
 - Live positions of PKP Intercity trains (EIP, EIC, IC, TLK, EC, EN)
 - Trains follow the real track geometry instead of straight lines between stations
 - Delay shown on every train (green / amber / red)
+- Traffic disruptions (track works, failures) shown on affected trains
 - Train details: route, stops, planned vs. reported/estimated times, platforms
 - Search by train number, name or station; filter by category
 - Mock mode with simulated trains for development without an API key
@@ -68,6 +69,7 @@ All settings live in `backend/.env` (see `.env.example`):
 | `CARRIERS` | `IC` | Carrier codes to track |
 | `POLL_INTERVAL_S` | per tier | Override the polling interval (capped by the tier's daily limit) |
 | `MOCK_MODE` | `0` | `1` = simulated trains, no API key needed |
+| `IDLE_AFTER_MIN` | `5` | Stop polling the API after this many minutes without map viewers (`0` = always poll) |
 | `PLK_NAIVE_TZ` | `Europe/Warsaw` | Timezone of the API's timestamps |
 
 ## Building map data
@@ -87,7 +89,9 @@ be fixed in `data/overrides/station_overrides.csv`.
 
 ## How it works
 
-1. The backend polls the PKP PLK API for train runs and caches daily timetables.
+1. While someone is viewing the map, the backend polls the PKP PLK API for train runs
+   (every 2 min on the Basic tier) and disruptions (every 15 min); timetables are fetched once a day.
+   With no viewers for a few minutes, polling pauses and resumes on the next visit.
 2. For each train it builds a timeline from reported times and carries the last known delay forward.
 3. The train is placed on the routed track segment between its previous and next station.
 4. The frontend animates markers along the segment every second and refreshes data every 15 s.

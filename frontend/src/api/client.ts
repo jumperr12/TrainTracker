@@ -1,4 +1,4 @@
-import type { LatLon, Meta, Station, TrainDetail, TrainsResponse } from "./types";
+import type { Disruption, LatLon, Meta, Station, TrainDetail, TrainsResponse } from "./types";
 
 // Empty = same origin (the Vite dev server proxies /api to the backend).
 const BASE = import.meta.env.VITE_API_BASE ?? "";
@@ -17,4 +17,5 @@ export const api = {
     getJson<Record<string, LatLon[]>>(`/api/segments?keys=${encodeURIComponent(keys.join(","))}`),
   stations: () => getJson<Station[]>("/api/stations"),
   meta: () => getJson<Meta>("/api/meta"),
+  disruptions: () => getJson<Disruption[]>("/api/disruptions"),
 };

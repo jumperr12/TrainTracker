@@ -18,6 +18,15 @@ export interface NextStop {
   delayMin: number;
 }
 
+export interface Disruption {
+  id: number;
+  type: string | null;
+  message: string | null;
+  fromStation: string | null;
+  toStation: string | null;
+  affectedTrains: number;
+}
+
 export interface Train {
   key: string;
   number: string;
@@ -34,6 +43,8 @@ export interface Train {
   origin: string;
   destination: string;
   lastReportMs: number | null;
+  /** Affected by at least one reported traffic disruption. */
+  disrupted: boolean;
 }
 
 export interface TrainsResponse {
@@ -71,6 +82,7 @@ export interface TrainDetail extends Omit<Train, "status" | "lat" | "lon"> {
   stops: Stop[];
   segmentKeys: string[];
   currentSegmentIndex: number | null;
+  disruptions: Disruption[];
 }
 
 export interface Station {
@@ -89,8 +101,11 @@ export interface Meta {
   lastPollOkMs: number | null;
   snapshotAtMs: number | null;
   stale: boolean;
+  /** Polling paused because nobody was viewing the map. */
+  idle: boolean;
   lastError: string | null;
   authError: boolean;
+  disruptionCount: number;
   quota: {
     hourlyLimit: number | null;
     hourlyRemaining: number | null;

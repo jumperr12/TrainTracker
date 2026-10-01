@@ -41,11 +41,18 @@ const escapeHtml = (s: string) =>
 
 /** Parts of a train marker that require a new DivIcon when they change (position/rotation don't). */
 export function trainIconSignature(t: Train, selected: boolean): string {
-  return [t.category, delayClass(t.delayMin), t.status, selected].join("|");
+  return [t.category, delayClass(t.delayMin), t.status, t.disrupted, selected].join("|");
 }
 
 export function trainDivIcon(t: Train, selected: boolean): L.DivIcon {
-  const classes = ["train-marker", delayClass(t.delayMin), `status-${t.status}`, selected ? "selected" : ""];
+  const classes = [
+    "train-marker",
+    delayClass(t.delayMin),
+    `status-${t.status}`,
+    selected ? "selected" : "",
+    t.disrupted ? "disrupted" : "",
+  ];
+  const warn = t.disrupted ? `<span class="train-warn" title="Traffic disruption">!</span>` : "";
   const label = SHOW_FALLBACK_LABEL ? `<span class="train-label">${escapeHtml(t.category ?? "?")}</span>` : "";
   const dot = SHOW_FALLBACK_LABEL ? `<span class="train-dot"></span>` : "";
   return L.divIcon({
@@ -56,7 +63,7 @@ export function trainDivIcon(t: Train, selected: boolean): L.DivIcon {
       `<div class="${classes.join(" ")}">` +
       `<span class="train-ring"></span>${dot}` +
       `<img class="train-icon" src="${trainIconUrl(t.category)}" width="${TRAIN_ICON_SIZE}" height="${TRAIN_ICON_SIZE}" alt="" draggable="false" />` +
-      `${label}</div>`,
+      `${label}${warn}</div>`,
   });
 }
 

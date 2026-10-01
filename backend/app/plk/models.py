@@ -104,6 +104,34 @@ class SchedulesResponse(ApiModel):
     dictionaries: Dictionaries | None = None
 
 
+# --- /api/v1/disruptions ----------------------------------------------------
+
+
+class AffectedRoute(ApiModel):
+    schedule_id: int
+    order_id: int
+    train_order_id: int | None = None
+    operating_date: date | None = None
+    station_id: int | None = None
+    sequence_number: int | None = None
+
+
+class Disruption(ApiModel):
+    disruption_id: int
+    disruption_type_code: str | None = None
+    start_station_id: int | None = None
+    end_station_id: int | None = None
+    message: str | None = None
+    affected_routes: list[AffectedRoute] = []
+
+
+class DisruptionsResponse(ApiModel):
+    generated_at: datetime | None = None
+    disruptions: list[Disruption] = []
+    disruption_types: dict[str, str] = {}  # code -> name
+    stations: dict[str, str] = {}  # station id -> name
+
+
 # --- /api/v1/dictionaries/stations -------------------------------------------
 
 

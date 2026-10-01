@@ -4,6 +4,7 @@ from itertools import pairwise
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.api.schemas import (
+    DisruptionOut,
     MetaOut,
     NextStop,
     QuotaOut,
@@ -15,7 +16,7 @@ from app.api.schemas import (
     TrainsOut,
 )
 from app.geo.rail import parse_segment_key, segment_key
-from app.plk.models import StationOnRoute
+from app.plk.models import Disruption, StationOnRoute
 from app.position.estimator import current_segment_key
 from app.state import LiveState, LiveTrain, utcnow
 
@@ -31,6 +32,24 @@ router = APIRouter(prefix="/api")
 
 def _state(request: Request) -> LiveState:
     return request.app.state.live
+
+
+async def _map_activity(request: Request) -> None:
+    """Map requests keep the poller awake (it pauses when nobody is looking)."""
+    poller = getattr(request.app.state, "poller", None)
+    if poller is not None:
+        await poller.on_activity()
+
+
+def _disruption_out(st: LiveState, d: Disruption) -> DisruptionOut:
+    return DisruptionOut(
+        id=d.disruption_id,
+        type=st.disruption_types.get(d.disruption_type_code or "", d.disruption_type_code),
+        message=d.message,
+        from_station=st.name(d.start_station_id) if d.start_station_id else None,
+        to_station=st.name(d.end_station_id) if d.end_station_id else None,
+        affected_trains=len({(a.schedule_id, a.order_id, a.operating_date) for a in d.affected_routes}),
+    )
 
 
 def ms(dt: datetime | None) -> int | None:
@@ -74,12 +93,14 @@ def _train_out(st: LiveState, lt: LiveTrain, cls=TrainOut, **extra):
         origin=st.name(stops[0].station_id),
         destination=st.name(stops[-1].station_id),
         last_report_ms=ms(lt.timeline.last_report_time),
+        disrupted=bool(st.disruptions_for(lt.op)),
         **extra,
     )
 
 
 @router.get("/trains", response_model=TrainsOut)
-def list_trains(request: Request) -> TrainsOut:
+async def list_trains(request: Request) -> TrainsOut:
+    await _map_activity(request)
     st = _state(request)
     now = utcnow()
     trains = [_train_out(st, lt) for lt in st.trains(now) if lt.est.visible]
@@ -99,7 +120,8 @@ def _schedule_rows(lt: LiveTrain) -> dict[tuple[int, int], StationOnRoute]:
 
 
 @router.get("/trains/{key}", response_model=TrainDetailOut)
-def train_detail(key: str, request: Request) -> TrainDetailOut:
+async def train_detail(key: str, request: Request) -> TrainDetailOut:
+    await _map_activity(request)
     st = _state(request)
     now = utcnow()
     lt = st.find(key, now)
@@ -148,7 +170,14 @@ def train_detail(key: str, request: Request) -> TrainDetailOut:
         stops=stops_out,
         segment_keys=keys,
         current_segment_index=keys.index(current) if current in keys else None,
+        disruptions=[_disruption_out(st, d) for d in st.disruptions_for(lt.op)],
     )
+
+
+@router.get("/disruptions", response_model=list[DisruptionOut])
+def disruptions(request: Request) -> list[DisruptionOut]:
+    st = _state(request)
+    return [_disruption_out(st, d) for d in st.disruptions]
 
 
 @router.get("/segments")
@@ -194,8 +223,10 @@ def meta(request: Request) -> MetaOut:
         last_poll_ok_ms=ms(st.last_poll_ok),
         snapshot_at_ms=ms(st.snapshot_at),
         stale=st.is_stale(now),
+        idle=st.idle,
         last_error=st.last_error,
         auth_error=st.auth_error,
+        disruption_count=len(st.disruptions),
         quota=QuotaOut(
             hourly_limit=q.hourly_limit, hourly_remaining=q.hourly_remaining,
             daily_limit=q.daily_limit, daily_remaining=q.daily_remaining,

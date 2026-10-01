@@ -17,6 +17,7 @@ import httpx
 from app.config import Settings
 from app.plk.models import (
     DataVersion,
+    DisruptionsResponse,
     OperationsResponse,
     SchedulesResponse,
     Station,
@@ -84,6 +85,7 @@ class PlkSource(Protocol):
 
     async def operations(self, carriers: list[str]) -> OperationsResponse: ...
     async def schedules(self, date_from: date, date_to: date, carriers: list[str]) -> SchedulesResponse: ...
+    async def disruptions(self, carriers: list[str]) -> DisruptionsResponse: ...
     async def stations(self) -> list[Station]: ...
     async def aclose(self) -> None: ...
 
@@ -171,6 +173,14 @@ class PlkClient:
             params["carriersInclude"] = ",".join(carriers)
         r = await self._get("/api/v1/schedules", params)
         return SchedulesResponse.model_validate(r.json())
+
+    async def disruptions(self, carriers: list[str]) -> DisruptionsResponse:
+        """Today's traffic disruptions (dates default to today on the API side)."""
+        params = {"dictionaries": "true"}
+        if carriers:
+            params["carriersInclude"] = ",".join(carriers)
+        r = await self._get("/api/v1/disruptions", params)
+        return DisruptionsResponse.model_validate(r.json())
 
     async def stations(self) -> list[Station]:
         out: list[Station] = []

@@ -16,6 +16,9 @@ from zoneinfo import ZoneInfo
 
 from app.plk.client import QuotaInfo
 from app.plk.models import (
+    AffectedRoute,
+    Disruption,
+    DisruptionsResponse,
     OperationsResponse,
     OperationStation,
     Pagination,
@@ -78,6 +81,13 @@ TEMPLATES: tuple[Template, ...] = (
 )
 
 _DELAYS = (0, 0, 0, 0, 2, 3, 5, 8, 12, 15, 25, 40)
+
+MOCK_DISRUPTION_TYPES = {"utr_02": "Awaria infrastruktury", "utr_10": "Prace torowe"}
+# (type code, start station, end station, message)
+MOCK_DISRUPTIONS = (
+    ("utr_02", 90022, 90023, "Awaria rozjazdu na stacji Kutno. Pociągi mogą być opóźnione do 20 minut."),
+    ("utr_10", 90032, 90032, "Prace torowe na stacji Opole Główne. Ruch jednotorowy, możliwe opóźnienia."),
+)
 
 
 def _reverse(t: Template) -> Template:
@@ -173,6 +183,35 @@ class MockPlkClient:
             generated_at=self.last_snapshot_at,
             pagination=Pagination(page=1, page_size=5000, total_count=len(trains), total_pages=1),
             trains=trains,
+            stations={str(k): v for k, v in STATIONS.items()},
+        )
+
+    async def disruptions(self, carriers: list[str]) -> DisruptionsResponse:
+        """Two standing disruptions affecting every current run that passes through them."""
+        self.calls_made += 1
+        now = self._local_now()
+        out = []
+        for did, (code, a, b, message) in enumerate(MOCK_DISRUPTIONS, 1):
+            affected = []
+            for d in (now.date() - timedelta(days=1), now.date()):
+                for run in self._runs_for_day(d):
+                    if self._operation(run, now) is None:
+                        continue
+                    for seq, (sid, _, _) in enumerate(run.template.stops, 1):
+                        if sid in (a, b):
+                            affected.append(AffectedRoute(
+                                schedule_id=SCHEDULE_ID, order_id=run.order_id, operating_date=run.operating_date,
+                                station_id=sid, sequence_number=seq,
+                            ))
+                            break
+            out.append(Disruption(
+                disruption_id=did, disruption_type_code=code, start_station_id=a, end_station_id=b,
+                message=message, affected_routes=affected,
+            ))
+        return DisruptionsResponse(
+            generated_at=self._now_fn(),
+            disruptions=out,
+            disruption_types={code: name for code, name in MOCK_DISRUPTION_TYPES.items()},
             stations={str(k): v for k, v in STATIONS.items()},
         )
 

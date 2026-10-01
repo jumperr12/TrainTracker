@@ -317,6 +317,56 @@ body {
   margin-top: 8px;
 }
 
+/* ---- disruptions ---- */
+.disruption {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--minor);
+  background: color-mix(in srgb, var(--minor) 12%, transparent);
+  border-radius: 4px;
+}
+
+.disruption-toggle {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.disruption-list {
+  position: relative;
+  margin: 0 12px 8px auto;
+  max-width: 420px;
+  max-height: 40vh;
+  overflow: auto;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 10px 12px;
+}
+
+.disruption-list h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.train-warn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--minor);
+  color: #fff;
+  font: 700 10px/14px system-ui, sans-serif;
+  text-align: center;
+  pointer-events: none;
+}
+
 /* ---- status bar ---- */
 .status-bar {
   position: absolute;

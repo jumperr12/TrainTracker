@@ -1,5 +1,4 @@
 import json
-import time
 from pathlib import Path
 
 import pytest
@@ -23,9 +22,9 @@ def client(tmp_path):
     )
     app = create_app(settings, source=MockPlkClient(settings.tz), stations=stations, segments=SegmentStore(None))
     with TestClient(app) as c:
-        deadline = time.time() + 10
-        while c.get("/api/meta").json()["trainCount"] == 0 and time.time() < deadline:
-            time.sleep(0.05)
+        # The poller sleeps until someone opens the map; the first map request waits for fresh data.
+        assert c.get("/api/meta").json()["apiCalls"] == 0  # nothing is fetched before the map is opened
+        assert c.get("/api/trains").json()["trains"]
         yield c
 
 
@@ -71,6 +70,22 @@ def test_detail_of_hidden_train_has_no_position(client):
     detail = client.get(f"/api/trains/{hidden[0].key}").json()
     assert detail["status"] in {"finished", "cancelled", "out_of_coverage", "unknown"}
     assert detail["lat"] is None and detail["stops"]
+
+
+def test_disruptions_listed_and_attached_to_affected_trains(client):
+    listed = client.get("/api/disruptions").json()
+    assert len(listed) == 2 and client.get("/api/meta").json()["disruptionCount"] == 2
+    kutno = next(d for d in listed if d["fromStation"] == "Kutno")
+    assert kutno["toStation"] == "Łowicz Główny" and kutno["type"] == "Awaria infrastruktury"
+
+    trains = client.get("/api/trains").json()["trains"]
+    hit = [t for t in trains if t["disrupted"]]
+    assert hit, "some current WARTA/ODRA runs pass the mock disruptions"
+    assert all(t["name"] in ("Warta", "Odra") for t in hit)
+    detail = client.get(f"/api/trains/{hit[0]['key']}").json()
+    assert detail["disruptions"] and detail["disruptions"][0]["message"]
+    clean = next(t for t in trains if not t["disrupted"])
+    assert client.get(f"/api/trains/{clean['key']}").json()["disruptions"] == []
 
 
 def test_unknown_train_is_404(client):
