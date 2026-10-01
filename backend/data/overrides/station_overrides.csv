@@ -1,0 +1,6 @@
+# Manual station coordinates. They win over automatic OSM matching (loaded by app/geo/stations.py).
+# Use them for entries in data/reports/unmatched.csv, or to fix a wrong match. After editing, run
+#   python -m scripts.build_segments --retry-straight
+# (segments whose station moved are re-routed automatically).
+# id = PLK station id (see data/cache/stations_dict.json); lat/lon in WGS84 decimal degrees.
+id,name,lat,lon

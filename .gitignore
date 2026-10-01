@@ -1,0 +1,32 @@
+# Secrets — the PLK API key must never be committed (Regulamin §3.3)
+.env
+*.env.local
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Generated / downloaded data (rebuild with backend/scripts)
+backend/data/osm/
+backend/data/cache/
+backend/data/reports/
+backend/data/*.pkl
+# Raw PLK responses must not be redistributed (Regulamin §3.4)
+backend/tests/fixtures/real/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local Claude Code / editor config
+.claude/

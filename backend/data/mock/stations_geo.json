@@ -1,0 +1,311 @@
+{
+ "version": 1,
+ "generatedAt": "2026-09-30T07:54:27.790131+00:00",
+ "license": "Coordinates derived from OpenStreetMap data, © OpenStreetMap contributors, ODbL 1.0",
+ "stations": {
+  "90001": {
+   "name": "Warszawa Wschodnia",
+   "lat": 52.251589,
+   "lon": 21.052368,
+   "source": "osm",
+   "osmId": "n33210583",
+   "osmName": "Warszawa Wschodnia"
+  },
+  "90002": {
+   "name": "Warszawa Centralna",
+   "lat": 52.228821,
+   "lon": 21.00316,
+   "source": "osm",
+   "osmId": "n9814916146",
+   "osmName": "Warszawa Centralna"
+  },
+  "90003": {
+   "name": "Warszawa Zachodnia",
+   "lat": 52.220157,
+   "lon": 20.965172,
+   "source": "osm",
+   "osmId": "n3390821831",
+   "osmName": "Warszawa Zachodnia"
+  },
+  "90004": {
+   "name": "Włoszczowa Północ",
+   "lat": 50.856395,
+   "lon": 19.946045,
+   "source": "osm",
+   "osmId": "n417910859",
+   "osmName": "Włoszczowa Północ"
+  },
+  "90005": {
+   "name": "Kraków Główny",
+   "lat": 50.068424,
+   "lon": 19.947886,
+   "source": "osm",
+   "osmId": "n206270454",
+   "osmName": "Kraków Główny"
+  },
+  "90010": {
+   "name": "Gdynia Główna",
+   "lat": 54.521788,
+   "lon": 18.526826,
+   "source": "osm",
+   "osmId": "n1964369654",
+   "osmName": "Gdynia Główna"
+  },
+  "90011": {
+   "name": "Sopot",
+   "lat": 54.440057,
+   "lon": 18.562314,
+   "source": "osm",
+   "osmId": "n266781738",
+   "osmName": "Sopot"
+  },
+  "90012": {
+   "name": "Gdańsk Wrzeszcz",
+   "lat": 54.38177,
+   "lon": 18.605511,
+   "source": "osm",
+   "osmId": "n3785967847",
+   "osmName": "Gdańsk Wrzeszcz"
+  },
+  "90013": {
+   "name": "Gdańsk Główny",
+   "lat": 54.356434,
+   "lon": 18.644195,
+   "source": "osm",
+   "osmId": "n3784638270",
+   "osmName": "Gdańsk Główny"
+  },
+  "90014": {
+   "name": "Tczew",
+   "lat": 54.097248,
+   "lon": 18.789781,
+   "source": "osm",
+   "osmId": "n1354117153",
+   "osmName": "Tczew"
+  },
+  "90015": {
+   "name": "Malbork",
+   "lat": 54.035971,
+   "lon": 19.04315,
+   "source": "osm",
+   "osmId": "n3820647726",
+   "osmName": "Malbork"
+  },
+  "90016": {
+   "name": "Iława Główna",
+   "lat": 53.581082,
+   "lon": 19.573121,
+   "source": "osm",
+   "osmId": "n597568110",
+   "osmName": "Iława Główna"
+  },
+  "90017": {
+   "name": "Działdowo",
+   "lat": 53.238858,
+   "lon": 20.167319,
+   "source": "osm",
+   "osmId": "n2261901826",
+   "osmName": "Działdowo"
+  },
+  "90020": {
+   "name": "Poznań Główny",
+   "lat": 52.401627,
+   "lon": 16.911579,
+   "source": "osm-context",
+   "osmId": "n646734838",
+   "osmName": "Poznań Główny"
+  },
+  "90021": {
+   "name": "Konin",
+   "lat": 52.231098,
+   "lon": 18.2541,
+   "source": "osm",
+   "osmId": "n29830753",
+   "osmName": "Konin"
+  },
+  "90022": {
+   "name": "Kutno",
+   "lat": 52.227094,
+   "lon": 19.348144,
+   "source": "osm",
+   "osmId": "n3456935411",
+   "osmName": "Kutno"
+  },
+  "90023": {
+   "name": "Łowicz Główny",
+   "lat": 52.10473,
+   "lon": 19.955622,
+   "source": "osm",
+   "osmId": "n1277279650",
+   "osmName": "Łowicz Główny"
+  },
+  "90030": {
+   "name": "Wrocław Główny",
+   "lat": 51.097916,
+   "lon": 17.037951,
+   "source": "osm",
+   "osmId": "n155479759",
+   "osmName": "Wrocław Główny"
+  },
+  "90031": {
+   "name": "Brzeg",
+   "lat": 50.852901,
+   "lon": 17.470893,
+   "source": "osm",
+   "osmId": "n3037185178",
+   "osmName": "Brzeg"
+  },
+  "90032": {
+   "name": "Opole Główne",
+   "lat": 50.661648,
+   "lon": 17.927207,
+   "source": "osm",
+   "osmId": "n3374664234",
+   "osmName": "Opole Główne"
+  },
+  "90033": {
+   "name": "Gliwice",
+   "lat": 50.301159,
+   "lon": 18.67704,
+   "source": "osm",
+   "osmId": "n2987517884",
+   "osmName": "Gliwice"
+  },
+  "90034": {
+   "name": "Zabrze",
+   "lat": 50.305299,
+   "lon": 18.787128,
+   "source": "osm",
+   "osmId": "n2987517885",
+   "osmName": "Zabrze"
+  },
+  "90035": {
+   "name": "Katowice",
+   "lat": 50.257607,
+   "lon": 19.017146,
+   "source": "osm",
+   "osmId": "n3246621282",
+   "osmName": "Katowice"
+  },
+  "90040": {
+   "name": "Szczecin Główny",
+   "lat": 53.418241,
+   "lon": 14.549407,
+   "source": "osm",
+   "osmId": "n4005504572",
+   "osmName": "Szczecin Główny"
+  },
+  "90041": {
+   "name": "Stargard",
+   "lat": 53.339287,
+   "lon": 15.03117,
+   "source": "osm",
+   "osmId": "n260872674",
+   "osmName": "Stargard"
+  },
+  "90042": {
+   "name": "Choszczno",
+   "lat": 53.164855,
+   "lon": 15.404033,
+   "source": "osm",
+   "osmId": "n603760755",
+   "osmName": "Choszczno"
+  },
+  "90043": {
+   "name": "Krzyż",
+   "lat": 52.877643,
+   "lon": 16.019422,
+   "source": "osm",
+   "osmId": "n727366743",
+   "osmName": "Krzyż"
+  },
+  "90044": {
+   "name": "Wronki",
+   "lat": 52.705034,
+   "lon": 16.386189,
+   "source": "osm",
+   "osmId": "n363576641",
+   "osmName": "Wronki"
+  },
+  "90050": {
+   "name": "Tarnów",
+   "lat": 50.005288,
+   "lon": 20.975117,
+   "source": "osm",
+   "osmId": "n2007029030",
+   "osmName": "Tarnów"
+  },
+  "90051": {
+   "name": "Dębica",
+   "lat": 50.05393,
+   "lon": 21.404153,
+   "source": "osm",
+   "osmId": "n3442849471",
+   "osmName": "Dębica"
+  },
+  "90052": {
+   "name": "Rzeszów Główny",
+   "lat": 50.042991,
+   "lon": 22.006086,
+   "source": "osm",
+   "osmId": "n3438299348",
+   "osmName": "Rzeszów Główny"
+  },
+  "90053": {
+   "name": "Przeworsk",
+   "lat": 50.066985,
+   "lon": 22.505444,
+   "source": "osm",
+   "osmId": "n48311251",
+   "osmName": "Przeworsk"
+  },
+  "90054": {
+   "name": "Jarosław",
+   "lat": 50.010622,
+   "lon": 22.67839,
+   "source": "osm",
+   "osmId": "n48314193",
+   "osmName": "Jarosław"
+  },
+  "90055": {
+   "name": "Przemyśl Główny",
+   "lat": 49.78361,
+   "lon": 22.780152,
+   "source": "osm",
+   "osmId": "n560182965",
+   "osmName": "Przemyśl Główny"
+  },
+  "90060": {
+   "name": "Łódź Fabryczna",
+   "lat": 51.769554,
+   "lon": 19.469611,
+   "source": "osm",
+   "osmId": "n4304797718",
+   "osmName": "Łódź Fabryczna"
+  },
+  "90061": {
+   "name": "Łódź Widzew",
+   "lat": 51.763105,
+   "lon": 19.543805,
+   "source": "osm",
+   "osmId": "n4176079485",
+   "osmName": "Łódź Widzew"
+  },
+  "90062": {
+   "name": "Koluszki",
+   "lat": 51.743472,
+   "lon": 19.818451,
+   "source": "osm",
+   "osmId": "n2183694742",
+   "osmName": "Koluszki"
+  },
+  "90063": {
+   "name": "Skierniewice",
+   "lat": 51.967619,
+   "lon": 20.151435,
+   "source": "osm",
+   "osmId": "n3455554928",
+   "osmName": "Skierniewice"
+  }
+ }
+}
