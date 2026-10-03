@@ -290,6 +290,9 @@ body {
 .board tbody tr {
   cursor: pointer;
 }
+.board .badge {
+  white-space: nowrap;
+}
 .board tbody tr:hover td {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
