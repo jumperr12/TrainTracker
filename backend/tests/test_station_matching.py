@@ -80,3 +80,15 @@ def test_overrides_win(tmp_path):
     idx = StationIndex.load(geo, overrides)
     assert idx.latlon(1) == (51.0, 21.0) and idx.latlon(2) == (52.0, 22.0)
     assert idx.get(1).source == "override"
+
+
+def test_current_name_beats_alternative_and_generic_word_matches():
+    index = NameIndex([
+        feat("n1", 52.4016, 16.9116, "Poznań Główny"),
+        feat("n2", 52.4182, 16.9715, "Poznań Wschód", "Poznań Główna"),  # old name normalizes the same
+        feat("n3", 52.4019, 20.9410, "Legionowo"),
+        feat("n4", 52.4113, 20.9142, "Legionowo Przystanek", kind="halt"),
+    ])
+    matches, problems = match_stations({1: "Poznań Gł.", 2: "Legionowo"}, index)
+    assert matches[1].osm_id == "n1" and matches[2].osm_id == "n3"
+    assert not problems

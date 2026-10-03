@@ -39,13 +39,14 @@ def fold(text: str) -> str:
     return "".join(ch for ch in text if not unicodedata.combining(ch)).lower()
 
 
-def normalize(name: str) -> str:
+def normalize(name: str, keep_generic: bool = False) -> str:
+    """`keep_generic` keeps words like "Przystanek" that are otherwise dropped."""
     tokens = re.split(r"[^a-z0-9]+", fold(name))
     out = []
     for tok in tokens:
         if not tok:
             continue
-        tok = _TOKEN_MAP.get(tok, tok)
+        tok = _TOKEN_MAP.get(tok, tok) or (tok if keep_generic else "")
         if tok:
             out.append(tok)
     return " ".join(out)
@@ -146,6 +147,13 @@ def match_stations(
         if not cands:
             problems.append((pid, name, "no match"))
             continue
+        if len(cands) > 1:
+            # "Legionowo" also matches "Legionowo Przystanek", and "Poznań Główny" an old name of
+            # Poznań Wschód: the one feature whose current name is the PLK name wins.
+            strict = normalize(name, keep_generic=True)
+            same = [c for c in cands if normalize(c.names[0], keep_generic=True) == strict]
+            if len(same) == 1:
+                cands = same
         if len(cands) == 1:
             f = cands[0]
             matches[pid] = Match(pid, name, f.lat, f.lon, source, f.osm_id, f.names[0], score)
