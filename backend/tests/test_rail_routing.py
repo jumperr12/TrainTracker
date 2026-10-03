@@ -94,6 +94,15 @@ def test_multi_candidate_snapping_picks_connected_line():
     assert passes_near(r, *far2[:2])
 
 
+def test_route_runs_on_to_the_station_past_a_junction_inside_the_snap_radius():
+    a, j, st, e = node(52.0, 20.0), node(52.0, 20.0165), node(52.0, 20.02), node(52.0, 20.03)
+    branch = node(52.005, 20.02)
+    router = RailRouter(build_graph_from_ways([way(a, j, st, e), way(j, branch)]))
+    r = router.route(a[:2], st[:2])  # j is ~240 m before the station
+    assert r.source == "rail"
+    assert haversine_m(*r.path[-1], *st[:2]) < 20
+
+
 def test_no_track_nearby():
     pts = [node(52.0, 20.0), node(52.0, 20.1)]
     r = RailRouter(build_graph_from_ways([way(*pts)])).route((53.0, 20.0), pts[1][:2])

@@ -176,7 +176,9 @@ class RailRouter:
     data: RailGraphData
     snap_radius_m: float = 400.0
     max_turn_deg: float = 50.0
-    snap_weight: float = 1.0
+    # Above 1 so a route runs on to the track point nearest the station instead of stopping at the
+    # first track inside the snap radius (at 1 the two cost the same and the route ends short).
+    snap_weight: float = 3.0
     max_ratio: float = 1.8
     max_expansions: int = 2_000_000
     _edge_len: np.ndarray = field(init=False, repr=False)
