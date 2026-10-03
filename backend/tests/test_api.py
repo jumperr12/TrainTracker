@@ -68,7 +68,8 @@ def test_detail_of_hidden_train_has_no_position(client):
     hidden = [t for t in state.trains(utcnow()) if not t.est.visible]
     assert hidden, "mock keeps finished trains for an hour after arrival"
     detail = client.get(f"/api/trains/{hidden[0].key}").json()
-    assert detail["status"] in {"finished", "cancelled", "out_of_coverage", "unknown"}
+    # Which hidden train comes first depends on the time of day; one not due yet is "not_started".
+    assert detail["status"] in {"finished", "cancelled", "out_of_coverage", "unknown", "not_started"}
     assert detail["lat"] is None and detail["stops"]
 
 

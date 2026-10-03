@@ -20,6 +20,9 @@ from app.position.timeline import Timeline, TimelineStop
 HOLD_BEFORE = timedelta(seconds=30)
 SHOW_BEFORE_DEPARTURE = timedelta(minutes=15)
 HIDE_AFTER_ARRIVAL = timedelta(minutes=2)
+# A train PLK still lists as not started this long after its departure time is not shown: it was
+# cancelled without a report or never reports at all (e.g. a replacement bus).
+GIVE_UP_NOT_STARTED = timedelta(hours=1)
 
 VISIBLE_STATUSES = {"not_started", "dwelling", "moving", "awaiting"}
 
@@ -72,6 +75,9 @@ def estimate(
         return Estimate("finished")
     if train_status == "C":
         return Estimate("finished")
+
+    if tl.last_reported < 0 and train_status == "S" and now - stops[0].t_out > GIVE_UP_NOT_STARTED:
+        return Estimate("unknown")
 
     tau, status, delay_floor = _virtual_time(tl, train_status, now, hold_grace)
     est = _place(located, tau, segments, len(stops))

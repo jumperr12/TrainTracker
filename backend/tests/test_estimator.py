@@ -125,3 +125,11 @@ def test_origin_without_planned_time_does_not_crash():
     _, est = run(op, 3)  # the forecast departure has passed without a report
     assert est.status == "awaiting"
     assert est.delay == timedelta(minutes=3)
+
+
+def test_train_never_started_is_dropped_an_hour_after_its_departure_time():
+    # PLK keeps listing never-reporting services (e.g. replacement buses) as not started for days.
+    _, est = run(basic_train(status="S"), 45)
+    assert est.status == "awaiting" and est.visible
+    _, est = run(basic_train(status="S"), 3 * 24 * 60)
+    assert est.status == "unknown" and not est.visible
