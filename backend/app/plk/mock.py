@@ -261,6 +261,7 @@ class MockPlkClient:
         stations = []
         reported_any = False
         finished = False
+        known = timedelta(0)  # last reported delay, which the forecasts for later stops carry forward
         for i, (sid, arr, dep) in enumerate(planned):
             d = delay if i >= delay_from else timedelta(minutes=rng.choice((0, 0, 1)))
             act_arr = arr + d if arr else None
@@ -276,9 +277,22 @@ class MockPlkClient:
             is_cancelled = cancelled_run or i == cancelled_stop
             if is_cancelled:
                 seen_arr = seen_dep = None
-            reported_any = reported_any or bool(seen_arr or seen_dep)
+            confirmed = bool(seen_arr or seen_dep)
+            reported_any = reported_any or confirmed
             if i == len(planned) - 1 and seen_arr:
                 finished = True
+            if seen_dep and dep:
+                known = seen_dep - dep
+            elif seen_arr and arr:
+                known = seen_arr - arr
+            # Like the real API: stops not reached yet carry a forecast in the "actual" fields.
+            out_arr, out_dep = seen_arr, seen_dep
+            if not confirmed and not is_cancelled:
+                out_arr = arr + known if arr else None
+                if dep and out_arr:
+                    out_dep = max(dep, out_arr + (timedelta(minutes=1) if dep > arr else timedelta(0)))
+                else:
+                    out_dep = dep + known if dep else None
 
             def minutes(actual: datetime | None, plan: datetime | None) -> int | None:
                 return round((actual - plan).total_seconds() / 60) if actual and plan else None
@@ -286,9 +300,9 @@ class MockPlkClient:
             stations.append(OperationStation(
                 station_id=sid, planned_sequence_number=i + 1, actual_sequence_number=i + 1,
                 planned_arrival=arr, planned_departure=dep,
-                actual_arrival=seen_arr, actual_departure=seen_dep,
-                arrival_delay_minutes=minutes(seen_arr, arr), departure_delay_minutes=minutes(seen_dep, dep),
-                is_confirmed=bool(seen_arr or seen_dep), is_cancelled=is_cancelled,
+                actual_arrival=out_arr, actual_departure=out_dep,
+                arrival_delay_minutes=minutes(out_arr, arr), departure_delay_minutes=minutes(out_dep, dep),
+                is_confirmed=confirmed, is_cancelled=is_cancelled,
             ))
 
         if cancelled_run:

@@ -46,9 +46,10 @@ async def main() -> None:
         statuses[t.train_status or "?"] = statuses.get(t.train_status or "?", 0) + 1
     print("train statuses:", statuses)
 
-    # Timezone check: the most recent actual time should be a little before the local wall clock.
+    # Timezone check: the most recent confirmed time should be a little before the local wall clock.
+    # (Unconfirmed stops carry PLK's forecast in the same fields, so they're left out.)
     now_local = datetime.now(settings.tz).replace(tzinfo=None)
-    actuals = [s.actual_departure or s.actual_arrival for t in ops.trains for s in t.stations]
+    actuals = [s.actual_arrival or s.actual_departure for t in ops.trains for s in t.stations if s.is_confirmed]
     actuals = [a for a in actuals if a is not None]
     if actuals:
         latest = max(a.replace(tzinfo=None) for a in actuals)
@@ -63,11 +64,12 @@ async def main() -> None:
     ids = {s.station_id for t in ops.trains for s in t.stations}
     located = sum(1 for i in ids if i in stations)
     print(f"{located}/{len(ids)} operation stations have coordinates ({settings.stations_geo_path.name})")
-    reported = sum(1 for t in ops.trains for s in t.stations if s.actual_arrival or s.actual_departure)
+    reported = sum(1 for t in ops.trains for s in t.stations if s.is_confirmed)
+    filled = sum(1 for t in ops.trains for s in t.stations if s.actual_arrival or s.actual_departure)
     total = sum(len(t.stations) for t in ops.trains)
-    print(f"{reported}/{total} operation stations carry an actual time")
+    print(f"{reported}/{total} operation stations are confirmed ({filled} carry an actual or forecast time)")
     if ops.trains:
-        tl = build_timeline(ops.trains[0], settings.tz)
+        tl = build_timeline(ops.trains[0], settings.tz, as_of=datetime.now(settings.tz))
         print(f"example timeline: {len(tl.stops)} stops, last reported index {tl.last_reported}")
     print(f"\nsaved to {OUT}")
     print(json.dumps(client.quota.__dict__, default=str))

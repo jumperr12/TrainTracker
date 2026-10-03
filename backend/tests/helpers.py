@@ -18,15 +18,21 @@ def now_at(minutes: float) -> datetime:
     return (T0 + timedelta(minutes=minutes)).replace(tzinfo=TZ)
 
 
-def stop(sid, arr=None, dep=None, a_arr=None, a_dep=None, seq=None, cancelled=False) -> OperationStation:
-    """Minutes relative to T0; a_* are actual (reported) times."""
+def stop(
+    sid, arr=None, dep=None, a_arr=None, a_dep=None, seq=None, cancelled=False, f_arr=None, f_dep=None
+) -> OperationStation:
+    """Minutes relative to T0; a_* are actual (reported) times, f_* PLK's forecast for an unconfirmed stop."""
+    reported = a_arr is not None or a_dep is not None
+    wire_arr = a_arr if reported else f_arr
+    wire_dep = a_dep if reported else f_dep
     return OperationStation(
         station_id=sid,
         planned_sequence_number=seq,
         planned_arrival=at(arr) if arr is not None else None,
         planned_departure=at(dep) if dep is not None else None,
-        actual_arrival=at(a_arr) if a_arr is not None else None,
-        actual_departure=at(a_dep) if a_dep is not None else None,
+        actual_arrival=at(wire_arr) if wire_arr is not None else None,
+        actual_departure=at(wire_dep) if wire_dep is not None else None,
+        is_confirmed=reported,
         is_cancelled=cancelled,
     )
 

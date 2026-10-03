@@ -2,9 +2,13 @@
 
 Rules:
 - Cancelled stops are dropped; stops are ordered by actual (else planned) sequence number.
-- Reported times are used as-is. Beyond the last report, the last known delay is carried
-  forward: est_arr = planned_arr + delay, est_dep = max(planned_dep, est_arr + min(planned
-  dwell, MIN_DWELL)), so a late train recovers time at stops with long planned dwell.
+- The API fills the "actual" fields of stops the train hasn't reached with PLK's own forecast.
+  Only times of confirmed stops (isConfirmed) that aren't later than the fetch time are reports;
+  everything else is a forecast.
+- Reported times are used as-is. Beyond the last report, PLK's forecast is used where there is
+  one; otherwise the last known delay is carried forward: est_arr = planned_arr + delay,
+  est_dep = max(planned_dep, est_arr + min(planned dwell, MIN_DWELL)), so a late train
+  recovers time at stops with long planned dwell.
 - Unreported stops *before* the last report get a delay interpolated between the reports
   around them (a missing report doesn't mean the train is still there).
 - Naive timestamps (the API omits the offset) are interpreted in the configured timezone.
@@ -15,9 +19,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, tzinfo
 
-from app.plk.models import TrainOperation
+from app.plk.models import OperationStation, TrainOperation
 
 MIN_DWELL = timedelta(seconds=60)
+# A confirmed time up to this far past the fetch time still counts as reported (minute rounding).
+REPORT_TOLERANCE = timedelta(minutes=1)
 
 
 def aware(dt: datetime | None, tz: tzinfo) -> datetime | None:
@@ -32,8 +38,10 @@ class TimelineStop:
     seq: int
     planned_arr: datetime | None
     planned_dep: datetime | None
-    actual_arr: datetime | None
+    actual_arr: datetime | None  # reported times only
     actual_dep: datetime | None
+    forecast_arr: datetime | None = None  # PLK's prediction for a time not reported yet
+    forecast_dep: datetime | None = None
     est_arr: datetime | None = None
     est_dep: datetime | None = None
 
@@ -97,21 +105,36 @@ class Timeline:
         return s.actual_dep or s.actual_arr
 
 
-def build_timeline(op: TrainOperation, tz: tzinfo, min_dwell: timedelta = MIN_DWELL) -> Timeline:
+def _stop(raw: OperationStation, seq: int, tz: tzinfo, as_of: datetime | None) -> TimelineStop:
+    arr, dep = aware(raw.actual_arrival, tz), aware(raw.actual_departure, tz)
+    horizon = as_of + REPORT_TOLERANCE if as_of is not None else None
+
+    def is_report(t: datetime | None) -> bool:
+        return raw.is_confirmed and t is not None and (horizon is None or t <= horizon)
+
+    return TimelineStop(
+        station_id=raw.station_id,
+        seq=seq,
+        planned_arr=aware(raw.planned_arrival, tz),
+        planned_dep=aware(raw.planned_departure, tz),
+        actual_arr=arr if is_report(arr) else None,
+        actual_dep=dep if is_report(dep) else None,
+        forecast_arr=None if is_report(arr) else arr,
+        forecast_dep=None if is_report(dep) else dep,
+    )
+
+
+def build_timeline(
+    op: TrainOperation, tz: tzinfo, min_dwell: timedelta = MIN_DWELL, as_of: datetime | None = None
+) -> Timeline:
+    """`as_of` is when the data was fetched: confirmed times after it are forecasts, not reports."""
     raw = [s for s in op.stations if not s.is_cancelled]
     order = sorted(
         range(len(raw)),
         key=lambda i: (raw[i].actual_sequence_number or raw[i].planned_sequence_number or 0, i),
     )
     stops = [
-        TimelineStop(
-            station_id=raw[i].station_id,
-            seq=raw[i].actual_sequence_number or raw[i].planned_sequence_number or i,
-            planned_arr=aware(raw[i].planned_arrival, tz),
-            planned_dep=aware(raw[i].planned_departure, tz),
-            actual_arr=aware(raw[i].actual_arrival, tz),
-            actual_dep=aware(raw[i].actual_departure, tz),
-        )
+        _stop(raw[i], raw[i].actual_sequence_number or raw[i].planned_sequence_number or i, tz, as_of)
         for i in order
     ]
     tl = Timeline(stops)
@@ -121,19 +144,10 @@ def build_timeline(op: TrainOperation, tz: tzinfo, min_dwell: timedelta = MIN_DW
     reported = [i for i, s in enumerate(stops) if s.reported]
     tl.last_reported = reported[-1] if reported else -1
 
-    # 1) Reported stops keep their actual times (a missing half is filled from the other half).
+    # 1) Reported stops keep their actual times; a missing half comes from the forecast or the other half.
     for i in reported:
         s = stops[i]
-        if s.actual_arr is not None:
-            s.est_arr = s.actual_arr
-        elif s.planned_arr is not None:  # only the departure was reported
-            dep_delay = s.actual_dep - s.planned_dep if s.planned_dep else timedelta(0)
-            s.est_arr = min(s.actual_dep, s.planned_arr + dep_delay)
-        s.est_dep = s.actual_dep
-        if s.est_dep is None and s.planned_dep is not None:
-            base = s.est_arr or s.planned_dep
-            dwell = (s.planned_dep - s.planned_arr) if s.planned_arr else timedelta(0)
-            s.est_dep = max(s.planned_dep, base + min(dwell, min_dwell))
+        _fill(s, s.actual_arr or s.forecast_arr, s.actual_dep or s.forecast_dep, min_dwell)
 
     # 2) Unreported stops before the last report: interpolate the delay between surrounding reports.
     prev_r: int | None = None
@@ -155,10 +169,14 @@ def build_timeline(op: TrainOperation, tz: tzinfo, min_dwell: timedelta = MIN_DW
                 d = d_next
         _shift(stops[i], d)
 
-    # 3) Stops after the last report: carry the delay forward with dwell recovery.
+    # 3) Stops after the last report: PLK's forecast, else carry the delay forward with dwell recovery.
     delay = stops[tl.last_reported].delay if tl.last_reported >= 0 else timedelta(0)
     for i in range(tl.last_reported + 1, len(stops)):
         s = stops[i]
+        if s.forecast_arr is not None or s.forecast_dep is not None:
+            _fill(s, s.forecast_arr, s.forecast_dep, min_dwell)
+            delay = s.delay
+            continue
         s.est_arr = s.planned_arr + delay if s.planned_arr else None
         if s.planned_dep is not None:
             if s.est_arr is not None:
@@ -180,6 +198,20 @@ def build_timeline(op: TrainOperation, tz: tzinfo, min_dwell: timedelta = MIN_DW
                 s.est_dep = last
             last = s.est_dep
     return tl
+
+
+def _fill(s: TimelineStop, arr: datetime | None, dep: datetime | None, min_dwell: timedelta) -> None:
+    """Use the given times; a missing half is derived from the other half and the plan."""
+    if arr is not None:
+        s.est_arr = arr
+    elif s.planned_arr is not None and dep is not None:  # only the departure is known
+        dep_delay = dep - s.planned_dep if s.planned_dep else timedelta(0)
+        s.est_arr = min(dep, s.planned_arr + dep_delay)
+    s.est_dep = dep
+    if s.est_dep is None and s.planned_dep is not None:
+        base = s.est_arr or s.planned_dep
+        dwell = (s.planned_dep - s.planned_arr) if s.planned_arr else timedelta(0)
+        s.est_dep = max(s.planned_dep, base + min(dwell, min_dwell))
 
 
 def _shift(s: TimelineStop, d: timedelta) -> None:

@@ -84,7 +84,7 @@ class LiveState:
                 continue
         tz = self.settings.tz
         self.operations = resp.trains
-        self._timelines = {train_key(op): build_timeline(op, tz) for op in resp.trains}
+        self._timelines = {train_key(op): build_timeline(op, tz, as_of=now) for op in resp.trains}
         self.snapshot_at = snapshot_at or resp.generated_at or now
         self.last_poll_ok = now
         self.last_error = None

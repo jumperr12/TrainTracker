@@ -30,7 +30,16 @@ async def test_reports_lag_behind_now_and_times_are_naive():
         for s in t.stations:
             for v in (s.actual_arrival, s.actual_departure):
                 if v is not None:
-                    assert v.tzinfo is None and v <= now_local
+                    assert v.tzinfo is None
+                    if s.is_confirmed:
+                        assert v <= now_local
+
+
+async def test_stops_not_reached_carry_forecasts_like_the_real_api():
+    resp = await client_at("2026-09-30T12:00:00+02:00").operations(["IC"])
+    upcoming = [s for t in resp.trains for s in t.stations if not s.is_confirmed and not s.is_cancelled]
+    assert upcoming
+    assert all(s.actual_arrival or s.actual_departure for s in upcoming)
 
 
 async def test_schedules_cover_every_run_and_known_stations():

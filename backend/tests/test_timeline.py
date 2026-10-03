@@ -80,3 +80,34 @@ def test_only_departure_reported_fills_arrival():
     s = tl.stops[1]
     assert s.est_arr == at(13).replace(tzinfo=TZ)  # planned arrival + 3 min departure delay
     assert s.est_dep == at(15).replace(tzinfo=TZ)
+
+
+def test_unconfirmed_times_are_forecasts_not_reports():
+    # The API puts its forecast into the "actual" fields of stops the train hasn't reached.
+    op = train(
+        stop(1, dep=0, a_dep=2),
+        stop(2, arr=10, dep=11, f_arr=15, f_dep=16),
+        stop(3, arr=20, f_arr=24),
+    )
+    tl = build_timeline(op, TZ)
+    assert tl.last_reported == 0
+    assert not tl.stops[1].reported and tl.stops[1].actual_arr is None
+    assert tl.stops[1].est_arr == at(15).replace(tzinfo=TZ)
+    assert tl.stops[2].est_arr == at(24).replace(tzinfo=TZ)  # PLK's forecast, not 20 + 2 carried forward
+
+
+def test_train_not_started_has_no_reports_despite_filled_times():
+    op = train(stop(1, dep=0, f_dep=0), stop(2, arr=10, f_arr=10), status="S")
+    tl = build_timeline(op, TZ)
+    assert tl.last_reported == -1
+    assert tl.last_report_time is None
+
+
+def test_confirmed_time_after_fetch_is_a_forecast():
+    # Arrival at stop 2 confirmed, but its departure (20) lies after the fetch (15): still a forecast.
+    op = train(stop(1, dep=0, a_dep=0), stop(2, arr=10, dep=12, a_arr=10, a_dep=20), stop(3, arr=30))
+    tl = build_timeline(op, TZ, as_of=at(15).replace(tzinfo=TZ))
+    s = tl.stops[1]
+    assert tl.last_reported == 1
+    assert s.actual_arr == at(10).replace(tzinfo=TZ) and s.actual_dep is None
+    assert s.est_dep == at(20).replace(tzinfo=TZ)
