@@ -8,7 +8,7 @@ const MIN_ZOOM = 8;
 const REFRESH_MS = 10 * 60_000;
 
 /** Stations served by the tracked trains, shown once zoomed in enough to not clutter the map. */
-export function StationLayer({ visible }: { visible: boolean }) {
+export function StationLayer({ visible, onSelect }: { visible: boolean; onSelect: (s: Station) => void }) {
   const [stations, setStations] = useState<Station[]>([]);
   const [zoom, setZoom] = useState<number | null>(null);
   const map = useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
@@ -33,7 +33,13 @@ export function StationLayer({ visible }: { visible: boolean }) {
   return (
     <>
       {stations.map((s) => (
-        <Marker key={s.id} position={[s.lat, s.lon]} icon={icon} keyboard={false}>
+        <Marker
+          key={s.id}
+          position={[s.lat, s.lon]}
+          icon={icon}
+          keyboard={false}
+          eventHandlers={{ click: () => onSelect(s) }}
+        >
           <Tooltip direction="right" offset={[8, 0]}>
             {s.name}
           </Tooltip>

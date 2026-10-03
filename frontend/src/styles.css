@@ -287,6 +287,22 @@ body {
   width: 14px;
 }
 
+.board tbody tr {
+  cursor: pointer;
+}
+.board tbody tr:hover td {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+button.link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .time .struck {
   text-decoration: line-through;
   color: var(--muted);

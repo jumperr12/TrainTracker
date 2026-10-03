@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { MapContainer, TileLayer, ZoomControl, useMap } from "react-leaflet";
-import type { LatLon, Train, TrainDetail } from "../api/types";
+import type { LatLon, Station, Train, TrainDetail } from "../api/types";
 import { RouteOverlay } from "./RouteOverlay";
 import { StationLayer } from "./StationLayer";
 import { TrainLayer } from "./TrainLayer";
@@ -13,6 +13,7 @@ interface Props {
   selectedKey: string | null;
   detail: TrainDetail | null;
   onSelect: (key: string) => void;
+  onSelectStation: (s: Station) => void;
   showStations: boolean;
   showRailOverlay: boolean;
   flyTo: { at: LatLon; seq: number } | null;
@@ -36,7 +37,7 @@ export function TrainMap(p: Props) {
           maxZoom={19}
         />
       )}
-      <StationLayer visible={p.showStations} />
+      <StationLayer visible={p.showStations} onSelect={p.onSelectStation} />
       <RouteOverlay detail={p.detail} />
       <TrainLayer trains={p.trains} clockOffset={p.clockOffset} selectedKey={p.selectedKey} onSelect={p.onSelect} />
       <FlyTo target={p.flyTo} />

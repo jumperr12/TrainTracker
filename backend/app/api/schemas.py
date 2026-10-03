@@ -93,6 +93,30 @@ class StationOut(Out):
     lon: float
 
 
+class BoardEntryOut(Out):
+    key: str  # train key, resolve with /api/trains/{key}
+    number: str
+    name: str | None
+    category: str | None
+    origin: str
+    destination: str
+    planned_arrival_ms: int | None
+    planned_departure_ms: int | None
+    est_arrival_ms: int | None  # reported time if there is one, else the estimate
+    est_departure_ms: int | None
+    delay_min: int
+    platform: str | None
+    track: str | None
+    reported: bool
+
+
+class StationBoardOut(Out):
+    id: int
+    name: str
+    generated_at_ms: int
+    entries: list[BoardEntryOut]  # upcoming and just-departed trains, soonest first
+
+
 class QuotaOut(Out):
     hourly_limit: int | None
     hourly_remaining: int | None

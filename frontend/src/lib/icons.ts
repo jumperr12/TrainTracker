@@ -30,8 +30,9 @@ export function trainIconUrl(category: string | null): string {
 
 export type DelayClass = "delay-ok" | "delay-minor" | "delay-major";
 
+/** Green only when on time or 1 minute off; any larger delay is at least orange. */
 export function delayClass(delayMin: number): DelayClass {
-  if (delayMin <= 5) return "delay-ok";
+  if (delayMin <= 1) return "delay-ok";
   if (delayMin <= 20) return "delay-minor";
   return "delay-major";
 }

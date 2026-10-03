@@ -1,14 +1,16 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import pairwise
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.api.schemas import (
+    BoardEntryOut,
     DisruptionOut,
     MetaOut,
     NextStop,
     QuotaOut,
     SegmentRef,
+    StationBoardOut,
     StationOut,
     StopOut,
     TrainDetailOut,
@@ -26,6 +28,8 @@ ATTRIBUTION = [
 ]
 DISCLAIMER = "Train positions are estimates interpolated from timetable and reported times."
 MAX_SEGMENT_KEYS = 300
+BOARD_KEEP_AFTER = timedelta(minutes=10)  # a train stays on a station board this long after its time
+BOARD_MAX_ENTRIES = 40
 
 router = APIRouter(prefix="/api")
 
@@ -60,13 +64,20 @@ def _minutes(td) -> int:
     return round(td.total_seconds() / 60) if td is not None else 0
 
 
+def _number(lt: LiveTrain) -> str:
+    """Display number such as "EIP 5352"."""
+    r = lt.route
+    category = r.commercial_category_symbol if r else None
+    number = (r.national_number or r.international_departure_number) if r else None
+    return " ".join(x for x in (category, number) if x) or f"#{lt.op.order_id}"
+
+
 def _train_out(st: LiveState, lt: LiveTrain, cls=TrainOut, **extra):
     r = lt.route
     est = lt.est
     stops = lt.timeline.stops
     category = r.commercial_category_symbol if r else None
-    number = (r.national_number or r.international_departure_number) if r else None
-    display = " ".join(x for x in (category, number) if x) or f"#{lt.op.order_id}"
+    display = _number(lt)
 
     segment = None
     if est.status == "moving" and est.seg_dep and est.seg_arr:
@@ -206,6 +217,55 @@ def stations(request: Request) -> list[StationOut]:
         if geo:
             out.append(StationOut(id=sid, name=st.name(sid), lat=geo.lat, lon=geo.lon))
     return out
+
+
+@router.get("/stations/{station_id}/board", response_model=StationBoardOut)
+def station_board(station_id: int, request: Request) -> StationBoardOut:
+    """Trains calling at the station: those still to come and those that left a moment ago."""
+    st = _state(request)
+    if station_id not in st.stations:
+        raise HTTPException(404, "station not found")
+    now = utcnow()
+    found: list[tuple[datetime, BoardEntryOut]] = []
+    for lt in st.trains(now):
+        if lt.op.train_status == "X":
+            continue
+        stops = lt.timeline.stops
+        rows = _schedule_rows(lt)
+        seen = 0
+        for s in stops:
+            if s.station_id != station_id:
+                continue
+            row = rows.get((station_id, seen))
+            seen += 1
+            when = s.t_out or s.t_in
+            if when is None or not s.is_passenger_stop or when < now - BOARD_KEEP_AFTER:
+                continue
+            r = lt.route
+            entry = BoardEntryOut(
+                key=lt.key,
+                number=_number(lt),
+                name=(r.name.title() if r and r.name else None),
+                category=r.commercial_category_symbol if r else None,
+                origin=st.name(stops[0].station_id),
+                destination=st.name(stops[-1].station_id),
+                planned_arrival_ms=ms(s.planned_arr),
+                planned_departure_ms=ms(s.planned_dep),
+                est_arrival_ms=ms(s.est_arr),
+                est_departure_ms=ms(s.est_dep),
+                delay_min=max(0, _minutes(s.delay)),
+                platform=(row.departure_platform or row.arrival_platform) if row else None,
+                track=(row.departure_track or row.arrival_track) if row else None,
+                reported=s.reported,
+            )
+            found.append((when, entry))
+    found.sort(key=lambda x: x[0])
+    return StationBoardOut(
+        id=station_id,
+        name=st.name(station_id),
+        generated_at_ms=ms(now),
+        entries=[e for _, e in found[:BOARD_MAX_ENTRIES]],
+    )
 
 
 @router.get("/meta", response_model=MetaOut)

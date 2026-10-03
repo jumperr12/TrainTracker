@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Stop, TrainDetail } from "../api/types";
 import { STATUS_TEXT, ago, delayText, hhmm } from "../lib/format";
 import { delayClass, trainIconUrl } from "../lib/icons";
+import { Time } from "./Time";
 
 interface Props {
   detail: TrainDetail | null;
@@ -113,18 +114,4 @@ export function TrainPanel({ detail, error, now, onClose }: Props) {
 
 function rowClass(s: Stop): string {
   return [s.passed ? "passed" : "", s.isStop ? "" : "passing"].join(" ").trim();
-}
-
-function Time({ planned, actual, est }: { planned: number | null; actual: number | null; est: number | null }) {
-  if (planned == null) return null;
-  const shown = actual ?? est;
-  const late = shown != null ? Math.round((shown - planned) / 60_000) : 0;
-  return (
-    <span className="time">
-      <span className={late > 0 ? "planned struck" : "planned"}>{hhmm(planned)}</span>
-      {late > 0 && shown != null && (
-        <span className={`${actual != null ? "reported" : "estimated"} ${delayClass(late)}`}> {hhmm(shown)}</span>
-      )}
-    </span>
-  );
 }

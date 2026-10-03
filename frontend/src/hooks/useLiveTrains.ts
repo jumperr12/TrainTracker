@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
-import type { Meta, TrainDetail, TrainsResponse } from "../api/types";
+import type { Meta, StationBoard, TrainDetail, TrainsResponse } from "../api/types";
 import { ensureSegments } from "../lib/segments";
 
 const TRAINS_POLL_MS = 15_000;
 const DETAIL_POLL_MS = 15_000;
 const META_POLL_MS = 30_000;
+const BOARD_POLL_MS = 30_000;
 
 /** Polls fn every `ms` while `enabled`; keeps the last good value and the last error. */
 function usePolling<T>(fn: (signal: AbortSignal) => Promise<T>, ms: number, deps: unknown[], enabled = true) {
@@ -76,6 +77,13 @@ export function useTrainDetail(key: string | null) {
     [key],
     key !== null,
   ) as { data: TrainDetail | null; error: string | null };
+}
+
+export function useStationBoard(id: number | null) {
+  return usePolling((signal) => api.stationBoard(id!, signal), BOARD_POLL_MS, [id], id !== null) as {
+    data: StationBoard | null;
+    error: string | null;
+  };
 }
 
 export function useMeta() {

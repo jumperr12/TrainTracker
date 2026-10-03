@@ -96,3 +96,16 @@ def test_stations_only_located_ones(client):
     stations = client.get("/api/stations").json()
     ids = {s["id"] for s in stations}
     assert 90002 in ids and 90099 not in ids  # the test point has no coordinates
+
+
+def test_station_board_lists_upcoming_trains_soonest_first(client):
+    board = client.get("/api/stations/90002/board").json()  # Warszawa Centralna
+    assert board["name"] == "Warszawa Centralna" and board["entries"]
+    now = board["generatedAtMs"]
+    times = [e["estDepartureMs"] or e["estArrivalMs"] for e in board["entries"]]
+    assert times == sorted(times)
+    assert all(t >= now - 10 * 60_000 for t in times)
+    first = board["entries"][0]
+    assert first["number"] and first["origin"] and first["destination"]
+    assert client.get(f"/api/trains/{first['key']}").status_code == 200
+    assert client.get("/api/stations/1/board").status_code == 404

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { LatLon, Train } from "./api/types";
+import type { LatLon, Station, Train } from "./api/types";
 import { Filters, OTHER, type FilterState } from "./components/Filters";
 import { SearchBar } from "./components/SearchBar";
+import { StationPanel } from "./components/StationPanel";
 import { StatusBar } from "./components/StatusBar";
 import { TrainPanel } from "./components/TrainPanel";
-import { useLiveTrains, useMeta, useTrainDetail } from "./hooks/useLiveTrains";
+import { useLiveTrains, useMeta, useStationBoard, useTrainDetail } from "./hooks/useLiveTrains";
 import { KNOWN_CATEGORIES } from "./lib/icons";
 import { TrainMap } from "./map/TrainMap";
 
@@ -16,6 +17,8 @@ export default function App() {
   const { data: meta } = useMeta();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const { data: detail, error: detailError } = useTrainDetail(selectedKey);
+  const [station, setStation] = useState<Station | null>(null);
+  const { data: board, error: boardError } = useStationBoard(station?.id ?? null);
   const [flyTo, setFlyTo] = useState<{ at: LatLon; seq: number } | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     hidden: new Set(),
@@ -44,11 +47,28 @@ export default function App() {
     return [...KNOWN_CATEGORIES, OTHER].filter((c) => counts.has(c)).map((name) => ({ name, count: counts.get(name)! }));
   }, [allTrains]);
 
-  const select = useCallback((key: string) => setSelectedKey(key), []);
+  // One side panel at a time: opening a train closes the station timetable and vice versa.
+  const select = useCallback((key: string) => {
+    setStation(null);
+    setSelectedKey(key);
+  }, []);
   const pick = useCallback((t: Train) => {
+    setStation(null);
     setSelectedKey(t.key);
     setFlyTo({ at: [t.lat, t.lon], seq: Date.now() });
   }, []);
+  const selectStation = useCallback((s: Station) => {
+    setSelectedKey(null);
+    setStation(s);
+  }, []);
+  const pickFromBoard = useCallback(
+    (key: string) => {
+      const t = allTrains.find((x) => x.key === key);
+      if (t) pick(t);
+      else select(key); // not on the map yet (or any more): show its details without moving the map
+    },
+    [allTrains, pick, select],
+  );
 
   // A selected train that finished its run disappears from the list: close the panel.
   useEffect(() => {
@@ -63,6 +83,7 @@ export default function App() {
         selectedKey={selectedKey}
         detail={selectedKey && detail?.key === selectedKey ? detail : null}
         onSelect={select}
+        onSelectStation={selectStation}
         showStations={filters.showStations}
         showRailOverlay={filters.showRailOverlay}
         flyTo={flyTo}
@@ -82,6 +103,16 @@ export default function App() {
           error={detailError}
           now={now + clockOffset}
           onClose={() => setSelectedKey(null)}
+        />
+      )}
+
+      {station && (
+        <StationPanel
+          name={station.name}
+          board={board?.id === station.id ? board : null}
+          error={boardError}
+          onPickTrain={pickFromBoard}
+          onClose={() => setStation(null)}
         />
       )}
 

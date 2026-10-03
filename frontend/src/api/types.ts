@@ -92,6 +92,32 @@ export interface Station {
   lon: number;
 }
 
+export interface BoardEntry {
+  /** Train key, resolve with /api/trains/{key}. */
+  key: string;
+  number: string;
+  name: string | null;
+  category: string | null;
+  origin: string;
+  destination: string;
+  plannedArrivalMs: number | null;
+  plannedDepartureMs: number | null;
+  /** Reported time if there is one, else the estimate. */
+  estArrivalMs: number | null;
+  estDepartureMs: number | null;
+  delayMin: number;
+  platform: string | null;
+  track: string | null;
+  reported: boolean;
+}
+
+export interface StationBoard {
+  id: number;
+  name: string;
+  generatedAtMs: number;
+  entries: BoardEntry[];
+}
+
 export interface Meta {
   mode: "live" | "mock";
   attribution: string[];
