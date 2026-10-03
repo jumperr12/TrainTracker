@@ -117,3 +117,11 @@ def test_outside_coverage_when_route_leaves_known_area():
     stations = line_stations(ids=(1, 2))
     _, est = run(basic_train(d1=0, d2=12), 25, stations=stations, grace=timedelta(0))
     assert est.status == "out_of_coverage" and not est.visible
+
+
+def test_origin_without_planned_time_does_not_crash():
+    # Trains from abroad enter at a border point that has only PLK's forecast, no planned time.
+    op = train(stop(1, f_dep=0), stop(2, arr=10, dep=12, f_arr=10, f_dep=12), stop(3, arr=20, f_arr=20), status="S")
+    _, est = run(op, 3)  # the forecast departure has passed without a report
+    assert est.status == "awaiting"
+    assert est.delay == timedelta(minutes=3)

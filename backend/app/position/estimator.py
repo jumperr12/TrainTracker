@@ -104,7 +104,7 @@ def _virtual_time(
     if lr < 0:
         if now < origin.t_out:
             return now, "not_started", None
-        late = now - origin.planned_out
+        late = now - (origin.planned_out or origin.t_out)  # border entry points have no planned time
         if train_status == "S" or now - origin.t_out <= grace:
             return origin.t_out, "awaiting", max(late, timedelta(0))
         return now, None, None
